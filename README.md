@@ -1,5 +1,3 @@
-# Query-Optimization
-
 # Introduction
 OptiQuery is a simple SQL query processing and optimizing tool. It takes input an SQL query and builds the relational algebra tree corresponding to it. After doing so, certain query optimization techniques like predicate pushdown and join optimization can be performed on it. The difference in estimated cost to run the query can be seen in the user interface.
 
