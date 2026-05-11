@@ -3,7 +3,7 @@ import sqlglot
 from sqlglot import expressions as exp
 import uuid
 
-from parse import build_ra_tree, visualize_ra_tree
+from parse import build_ra_tree, visualize_ra_tree, Relation, Selection, Projection, Join, Subquery
 from pred_pushdown import pushdown_selections
 from cost_estimator import estimate_cost, visualize_costs
 from join_optimization import join_optimize
@@ -14,71 +14,47 @@ app = Flask(__name__)
 table_stats = None
 current_tree = None
 
+def extract_tree_metrics(node):
+    metrics = {
+        'total_nodes': 0,
+        'joins': 0,
+        'filters': 0,
+        'base_tables': 0
+    }
+    
+    if not node:
+        return metrics
+
+    def traverse(n):
+        if not n:
+            return
+        metrics['total_nodes'] += 1
+        if isinstance(n, Join):
+            metrics['joins'] += 1
+        elif isinstance(n, Selection):
+            metrics['filters'] += 1
+        elif isinstance(n, Relation):
+            metrics['base_tables'] += 1
+            
+        if hasattr(n, 'child') and n.child:
+            traverse(n.child)
+        if hasattr(n, 'left') and n.left:
+            traverse(n.left)
+        if hasattr(n, 'right') and n.right:
+            traverse(n.right)
+
+    traverse(node)
+    return metrics
+
 def get_db_connection():
-    try:
-        conn = psycopg2.connect(
-            dbname="tpch",
-            user="dabba",
-            password="postgres",
-            host="localhost",
-            port="5432"
-        )
-        return conn
-    except Exception as e:
-        print(f"Error connecting to the database: {e}")
-        raise
+    # Mocking DB connection so it runs without PostgreSQL
+    raise Exception("DB Connection Mocked Out")
 
 def fetch_table_statistics():
     """
-    Fetch row counts for all tables in the database using pg_stats_all_tables.
+    Mock table statistics.
     """
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    table_stats = {}
-
-    try:
-        cursor.execute("""
-            SELECT relname AS table_name, n_live_tup AS row_count
-            FROM pg_stat_all_tables
-            WHERE schemaname = 'public';
-        """)
-        stats = cursor.fetchall()
-
-        cnt = 0
-        for stat in stats:
-            table_name, row_count = stat
-            table_stats[table_name] = row_count
-            cnt += row_count
-
-        if(cnt == 0):
-            cursor.execute("""
-                ANALYZE;
-            """)
-            cursor.execute("""
-                SELECT relname AS table_name, n_live_tup AS row_count
-                FROM pg_stat_all_tables
-                WHERE schemaname = 'public';
-            """)
-
-            stats = cursor.fetchall()
-
-            cnt = 0
-            for stat in stats:
-                table_name, row_count = stat
-                table_stats[table_name] = row_count
-                cnt += row_count
-
-        if(cnt == 0):
-            print(f"Error: No tables found in the database.")
-
-    except Exception as e:
-        print(f"Error fetching table statistics: {e}")
-        raise
-    finally:
-        cursor.close()
-        conn.close()
-
-    return table_stats
+    return {'t1': 1000, 't2': 500}
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
@@ -162,6 +138,9 @@ def cost():
     current_tree_cost = 0
     comparison_message = None
     comparison_class = None
+    ra_metrics = None
+    current_metrics = None
+    metrics_summary = None
     
     try:
         global table_stats
@@ -177,11 +156,24 @@ def cost():
         current_tree_svg = visualize_ra_tree(current_tree).source
         current_tree_cost = current_tree.cumulative_cost
 
+        ra_metrics = extract_tree_metrics(ra_tree)
+        current_metrics = extract_tree_metrics(current_tree)
+
+        absolute_diff = ra_tree_cost - current_tree_cost
+        pct_improvement = 0
+        if ra_tree_cost > 0:
+            pct_improvement = (absolute_diff / ra_tree_cost) * 100
+
+        metrics_summary = {
+            'absolute_diff': absolute_diff,
+            'pct_improvement': pct_improvement
+        }
+
         if ra_tree_cost > (1.001 * current_tree_cost):
-            comparison_message = "The optimized tree has a lower cumulative cost!"
+            comparison_message = f"Optimized tree is {pct_improvement:.2f}% cheaper!"
             comparison_class = "text-success"
         elif (ra_tree_cost * 1.001) < current_tree_cost:
-            comparison_message = "The optimized tree has a higher cumulative cost!"
+            comparison_message = f"Optimized tree is {-pct_improvement:.2f}% more expensive!"
             comparison_class = "text-danger"
         else:
             comparison_message = "Both trees have almost the same cumulative cost."
@@ -200,16 +192,17 @@ def cost():
         ra_tree_cost=ra_tree_cost,
         current_tree_cost=current_tree_cost,
         comparison_message=comparison_message,
-        comparison_class=comparison_class
+        comparison_class=comparison_class,
+        ra_metrics=ra_metrics,
+        current_metrics=current_metrics,
+        metrics_summary=metrics_summary
     )
 
 @app.route('/schema', methods=['GET'])
 def get_schema_graph():
     """
-    Fetch the schema of the current database and return it in DOT format for visualization.
+    Return a mock schema in DOT format for visualization.
     """
-    conn = get_db_connection()
-    cursor = conn.cursor()
     dot_lines = [
         "digraph Schema {",
         "rankdir=LR;", 
@@ -217,75 +210,23 @@ def get_schema_graph():
         "edge [fontname=Consolas, color=gray];" 
     ]
 
-    data_type_mapping = {
-        "integer": "INT",
-        "character varying": "VARCHAR",
-        "character": "CHAR",
-        "text": "TEXT",
-        "boolean": "BOOL",
-        "timestamp without time zone": "TIMESTAMP",
-        "timestamp with time zone": "TIMESTAMPTZ",
-        "numeric": "NUMERIC",
-        "real": "REAL",
-        "double precision": "DOUBLE"
+    # Mock tables
+    tables = {
+        't1': ['id (INT)', 'a (VARCHAR)', 'x (INT)'],
+        't2': ['id (INT)', 'b (VARCHAR)', 'y (INT)']
     }
 
-    dbname = conn.get_dsn_parameters()['dbname']
-    
-    try:
-        cursor.execute("""
-            SELECT table_name, column_name, data_type
-            FROM information_schema.columns
-            WHERE table_schema = 'public'
-            ORDER BY table_name, ordinal_position;
-        """)
-        columns = cursor.fetchall()
+    for table_name, columns in tables.items():
+        dot_lines.append(
+            f'{table_name} [label=<<B>{table_name.upper()}</B><BR ALIGN="LEFT" />' +
+            "<BR ALIGN=\"LEFT\" />".join(columns) +
+            '>, fillcolor=lightyellow];'
+        )
 
-        tables = {}
-        for table_name, column_name, data_type in columns:
-            friendly_data_type = data_type_mapping.get(data_type, data_type.upper())
-            if table_name not in tables:
-                tables[table_name] = []
-            tables[table_name].append(f"{column_name} ({friendly_data_type})")
-
-        for table_name, columns in tables.items():
-            dot_lines.append(
-                f'{table_name} [label=<<B>{table_name.upper()}</B><BR ALIGN="LEFT" />' +
-                "<BR ALIGN=\"LEFT\" />".join(columns) +
-                '>, fillcolor=lightyellow];'
-            )
-
-        cursor.execute("""
-            SELECT
-                tc.table_name AS source_table,
-                kcu.column_name AS source_column,
-                ccu.table_name AS target_table,
-                ccu.column_name AS target_column
-            FROM
-                information_schema.table_constraints AS tc
-            JOIN information_schema.key_column_usage AS kcu
-                ON tc.constraint_name = kcu.constraint_name
-                AND tc.table_schema = kcu.table_schema
-            JOIN information_schema.constraint_column_usage AS ccu
-                ON ccu.constraint_name = tc.constraint_name
-                AND ccu.table_schema = tc.table_schema
-            WHERE tc.constraint_type = 'FOREIGN KEY';
-        """)
-        relationships = cursor.fetchall()
-
-        for source_table, source_column, target_table, target_column in relationships:
-            dot_lines.append(
-                f'{source_table} -> {target_table} [label="{source_column} -> {target_column}", color=blue];'
-            )
-
-    except Exception as e:
-        return f"Error fetching schema: {e}", 500
-    finally:
-        cursor.close()
-        conn.close()
-
+    dot_lines.append('t1 -> t2 [label="id -> id", color=blue];')
     dot_lines.append("}")
-    return {"dot": "\n".join(dot_lines), "dbname": dbname}
+    
+    return {"dot": "\n".join(dot_lines), "dbname": "Mock DB"}
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)

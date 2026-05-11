@@ -1,0 +1,417 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1">
+      <title>OptiQuery</title>
+      <!-- Bootstrap CSS -->
+      <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+      <script src="https://d3js.org/d3.v6.min.js"></script>
+      <script src="https://unpkg.com/d3-graphviz/build/d3-graphviz.min.js"></script>
+
+      <style>
+            @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap');
+            
+            body {
+                  font-family: 'Outfit', sans-serif;
+                  background: linear-gradient(-45deg, #0f2027, #203a43, #2c5364, #1f4037, #99f2c8);
+                  background-size: 400% 400%;
+                  animation: gradientBG 15s ease infinite;
+                  color: #e0e0e0;
+                  min-height: 100vh;
+            }
+
+            @keyframes gradientBG {
+                  0% { background-position: 0% 50%; }
+                  50% { background-position: 100% 50%; }
+                  100% { background-position: 0% 50%; }
+            }
+
+            .navbar {
+                  background: rgba(255, 255, 255, 0.05) !important;
+                  backdrop-filter: blur(10px);
+                  -webkit-backdrop-filter: blur(10px);
+                  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+                  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+            }
+            .navbar-brand { font-weight: 700; font-size: 1.5rem; letter-spacing: 1px; color: #fff !important; }
+
+            .card {
+                  background: rgba(255, 255, 255, 0.08);
+                  backdrop-filter: blur(12px);
+                  -webkit-backdrop-filter: blur(12px);
+                  border: 1px solid rgba(255, 255, 255, 0.2);
+                  border-radius: 16px;
+                  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+                  transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.3s ease;
+                  color: #fff;
+            }
+
+            .card:hover {
+                  transform: translateY(-5px);
+                  box-shadow: 0 12px 40px 0 rgba(0, 0, 0, 0.45);
+            }
+
+            textarea.form-control {
+                  background: rgba(0, 0, 0, 0.2);
+                  border: 1px solid rgba(255, 255, 255, 0.1);
+                  color: #fff;
+                  border-radius: 8px;
+            }
+            textarea.form-control:focus {
+                  background: rgba(0, 0, 0, 0.3);
+                  color: #fff;
+                  border-color: #38ef7d;
+                  box-shadow: 0 0 10px rgba(56, 239, 125, 0.5);
+            }
+
+            .metric-card {
+                  background: rgba(255,255,255,0.1);
+                  backdrop-filter: blur(8px);
+                  border: 1px solid rgba(255,255,255,0.2);
+                  transition: transform 0.3s ease;
+                  border-radius: 16px;
+                  box-shadow: inset 0 0 20px rgba(255,255,255,0.05);
+            }
+
+            .metric-card:hover {
+                  transform: translateY(-8px) scale(1.02);
+            }
+
+            .card-gradient-primary { background: linear-gradient(135deg, rgba(78,84,200,0.8), rgba(143,148,251,0.8)); }
+            .card-gradient-success { background: linear-gradient(135deg, rgba(17,153,142,0.8), rgba(56,239,125,0.8)); }
+            .card-gradient-info { background: linear-gradient(135deg, rgba(47,128,237,0.8), rgba(86,204,242,0.8)); }
+
+            .stat-box {
+                  padding: 15px;
+                  border-radius: 12px;
+                  background: rgba(0,0,0,0.2);
+                  border: 1px solid rgba(255,255,255,0.1);
+                  transition: all 0.3s ease;
+            }
+            .stat-box:hover {
+                  background: rgba(255,255,255,0.1);
+                  transform: scale(1.05);
+            }
+
+            #graph-container, #ra-tree-container, #current-tree-container {
+                  background: rgba(255,255,255,0.9);
+                  border-radius: 12px;
+                  padding: 10px;
+                  margin: 0 auto;
+            }
+
+            .btn {
+                  border-radius: 10px;
+                  font-weight: 600;
+                  letter-spacing: 0.5px;
+                  transition: all 0.3s ease;
+                  position: relative;
+                  overflow: hidden;
+                  z-index: 1;
+            }
+            .btn::before {
+                  content: '';
+                  position: absolute;
+                  top: 0; left: 0; right: 0; bottom: 0;
+                  background: rgba(255,255,255,0.1);
+                  z-index: -1;
+                  transform: scaleX(0);
+                  transform-origin: left;
+                  transition: transform 0.3s ease;
+            }
+            .btn:hover::before { transform: scaleX(1); }
+            
+            .btn-active {
+                  background: linear-gradient(90deg, #00c6ff, #0072ff) !important;
+                  border: none !important;
+                  color: white !important;
+                  box-shadow: 0 4px 15px rgba(0,114,255,0.4);
+            }
+
+            .btn-inactive {
+                  background: rgba(255,255,255,0.1) !important;
+                  border: 1px solid rgba(255,255,255,0.2) !important;
+                  color: #e0e0e0 !important;
+            }
+            .btn-inactive:hover {
+                  background: rgba(255,255,255,0.2) !important;
+                  color: #fff !important;
+            }
+            
+            .btn-info {
+                  background: linear-gradient(90deg, #f12711, #f5af19) !important;
+                  border: none !important;
+                  color: white !important;
+                  box-shadow: 0 4px 15px rgba(245,175,25,0.4);
+            }
+
+            /* Custom scrollbar */
+            ::-webkit-scrollbar { width: 8px; height: 8px; }
+            ::-webkit-scrollbar-track { background: rgba(0,0,0,0.1); }
+            ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.3); border-radius: 4px; }
+            ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.5); }
+      </style>
+      <script>
+            function loadSchema() {
+                  fetch('/schema')
+                        .then(response => response.json())
+                        .then(data => {
+                              const dot = data.dot;
+                              d3.select("#schema-graph")
+                                    .graphviz()
+                                    .renderDot(dot);
+
+                              const dbname = data.dbname;
+                              const modalTitle = document.getElementById("schemaModalLabel");
+                              if (dbname) {
+                                    modalTitle.innerHTML = `Database Schema for ${dbname}`;
+                              } else {
+                                    modalTitle.innerHTML = "Database Schema";
+                              }
+                        })
+                        .catch(error => {
+                              console.error("Error fetching schema:", error);
+                              alert("Failed to load schema.");
+                        });
+            }
+      </script>
+</head>
+
+<body>
+      <nav class="navbar navbar-expand-lg navbar-dark bg-primary mb-4">
+            <div class="container-fluid">
+                  <a class="navbar-brand" href="/">OptiQuery</a>
+            </div>
+      </nav>
+      <div class="container">
+            <div class="row mb-4">
+                  <div class="col-md-9">
+                        <div class="card">
+                              <div class="card-body">
+                                    <h5 class="card-title">Enter SQL Query</h5>
+                                    <form method="post" action="/">
+                                          <div class="mb-3">
+                                                <textarea class="form-control" name="sql" rows="7"
+                                                      placeholder="SELECT * FROM table;"
+                                                      style="font-family: monospace; font-size: 14px;">{{ sql }}</textarea>
+                                          </div>
+                                          <button type="submit"
+                                                class="btn {% if request.endpoint == 'index' %}btn-active{% else %}btn-inactive{% endif %}">Generate
+                                                Tree</button>
+                                    </form>
+                              </div>
+                        </div>
+                  </div>
+
+                  <div class="col-md-3 d-flex flex-column justify-content-start">
+                        <div class="card">
+                              <div class="card-body">
+                                    <h5 class="card-title">Operations</h5>
+                                    <div class="d-flex justify-content-around align-items-left flex-column">
+                                          <form method="post" action="/pushdown" class="mb-3">
+                                                <input type="hidden" name="sql" value="{{ sql }}">
+                                                <button type="submit" id="pushdown-button"
+                                                      class="btn w-100 {% if request.endpoint == 'pushdown' %}btn-active{% else %}btn-inactive{% endif %}">Apply
+                                                      Predicate Pushdown</button>
+                                          </form>
+
+                                          <form method="post" action="/joinopt" class="mb-3">
+                                                <input type="hidden" name="sql" value="{{ sql }}">
+                                                <button type="submit" id="joinopt-button"
+                                                      class="btn w-100 {% if request.endpoint == 'joinopt' %}btn-active{% else %}btn-inactive{% endif %}">Apply
+                                                      Join Optimization</button>
+                                          </form>
+
+                                          <form method="post" action="/cost" class="mb-3">
+                                                <input type="hidden" name="sql" value="{{ sql }}">
+                                                <button type="submit" id="cost-button"
+                                                      class="btn w-100 {% if request.endpoint == 'cost' %}btn-active{% else %}btn-inactive{% endif %}">Compare
+                                                      Costs</button>
+                                          </form>
+
+                                          <a href="#" class="btn btn-info mb-3" data-bs-toggle="modal"
+                                                data-bs-target="#schemaModal" onclick="loadSchema()">Show Database
+                                                Schema</a>
+                                    </div>
+                              </div>
+                        </div>
+                  </div>
+            </div>
+            {% if error %}
+            <div class="alert alert-danger" role="alert">
+                  {{ error }}
+            </div>
+            {% endif %}
+            {% if dot_src %}
+            <div class="row">
+                  <div class="col">
+                        <div class="card">
+                              <div class="card-body" id="graph-container">
+                                    <script>
+                                          const dot = {{ dot_src | tojson }};
+                                          const graphContainer = d3.select('#graph-container')
+                                                .append('div')
+                                                .attr('id', 'graph')
+                                                .style('margin', '0 auto') // Dynamic centering
+                                                .graphviz({ useWorker: false })
+                                                .zoom(true) // Enable zoom
+                                                .fit(true) // Fit the graph to the container
+                                                .renderDot(dot)
+                                                .on('end', function () {
+
+                                                });
+                                    </script>
+                              </div>
+                        </div>
+                  </div>
+            </div>
+            {% endif %}
+            {% if ra_tree_svg and current_tree_svg %}
+            <div class="row mt-4">
+                  <div class="col-12">
+                        <h4 class="mb-3 fw-bold">Metrics Dashboard</h4>
+                  </div>
+                  <!-- Cost Comparison Cards -->
+                  <div class="col-md-4 mb-4">
+                        <div class="metric-card card-gradient-primary text-white p-4 h-100 shadow-sm">
+                              <h6 class="text-uppercase tracking-wide opacity-75">Original Cost</h6>
+                              <h2 class="display-6 fw-bold mb-0">{{ "{:,.2f}".format(ra_tree_cost) }}</h2>
+                        </div>
+                  </div>
+                  <div class="col-md-4 mb-4">
+                        <div class="metric-card card-gradient-success text-white p-4 h-100 shadow-sm">
+                              <h6 class="text-uppercase tracking-wide opacity-75">Optimized Cost</h6>
+                              <h2 class="display-6 fw-bold mb-0">{{ "{:,.2f}".format(current_tree_cost) }}</h2>
+                        </div>
+                  </div>
+                  <div class="col-md-4 mb-4">
+                        <div class="metric-card card-gradient-info text-white p-4 h-100 shadow-sm">
+                              <h6 class="text-uppercase tracking-wide opacity-75">Cost Reduction</h6>
+                              <h2 class="display-6 fw-bold mb-1">{{ "{:.2f}".format(metrics_summary.pct_improvement) }}%</h2>
+                              <small class="opacity-75">Absolute savings: {{ "{:,.2f}".format(metrics_summary.absolute_diff) }}</small>
+                        </div>
+                  </div>
+                  
+                  <!-- Tree Complexity Breakdown -->
+                  <div class="col-12 mb-4">
+                        <div class="card shadow-sm border-0">
+                              <div class="card-body">
+                                    <h5 class="card-title fw-bold mb-4">Query Plan Complexity</h5>
+                                    <div class="row text-center">
+                                          <div class="col-3">
+                                                <div class="stat-box">
+                                                      <h4 class="fw-bold text-primary">{{ ra_metrics.total_nodes }} &rarr; {{ current_metrics.total_nodes }}</h4>
+                                                      <span class="text-muted small text-uppercase">Total Nodes</span>
+                                                </div>
+                                          </div>
+                                          <div class="col-3">
+                                                <div class="stat-box">
+                                                      <h4 class="fw-bold text-success">{{ ra_metrics.joins }} &rarr; {{ current_metrics.joins }}</h4>
+                                                      <span class="text-muted small text-uppercase">Joins</span>
+                                                </div>
+                                          </div>
+                                          <div class="col-3">
+                                                <div class="stat-box">
+                                                      <h4 class="fw-bold text-warning">{{ ra_metrics.filters }} &rarr; {{ current_metrics.filters }}</h4>
+                                                      <span class="text-muted small text-uppercase">Filters</span>
+                                                </div>
+                                          </div>
+                                          <div class="col-3">
+                                                <div class="stat-box">
+                                                      <h4 class="fw-bold text-info">{{ ra_metrics.base_tables }} &rarr; {{ current_metrics.base_tables }}</h4>
+                                                      <span class="text-muted small text-uppercase">Base Tables</span>
+                                                </div>
+                                          </div>
+                                    </div>
+                              </div>
+                        </div>
+                  </div>
+                  
+                  <div class="col-12 mb-4">
+                        <div class="alert alert-light border shadow-lg text-center" style="background: rgba(255,255,255,0.1); backdrop-filter: blur(10px); color: #fff;">
+                              <h5 class="{{ comparison_class }} mb-0 fw-bold">{{ comparison_message }}</h5>
+                        </div>
+                  </div>
+            </div>
+            <div class="row mt-4">
+                  <div class="col-md-6">
+                        <div class="card">
+                              <div class="card-body" id="ra-tree-container">
+                                    <h5 class="text-center">Original RA Tree with Costs</h5>
+                              </div>
+                        </div>
+                  </div>
+                  <div class="col-md-6">
+                        <div class="card">
+                              <div class="card-body" id="current-tree-container">
+                                    <h5 class="text-center">Current Tree with Costs</h5>
+                              </div>
+                        </div>
+                  </div>
+            </div>
+
+            <script>
+                  function renderGraph(containerId, dotData, defaultZoomLevel) {
+                        const graphContainer = d3.select(containerId)
+                              .append('div')
+                              .attr('id', `${containerId}-graph`)
+                              .style('margin', '0 auto') // Dynamic centering
+                              .graphviz({ useWorker: false })
+                              .zoom(true) // Enable zoom
+                              .fit(true) // Fit the graph to the container
+                              .renderDot(dotData)
+                              .on('end', function () {
+                                    const svg = d3.select(`${containerId} svg`);
+                                    const g = svg.select('g');
+                                    const zoom = d3.zoom()
+                                          .scaleExtent([0.1, 2])
+                                          .on('zoom', function (event) {
+                                                g.attr('transform', event.transform);
+                                          });
+
+                                    svg.call(zoom);
+                                    const containerWidth = svg.node().getBoundingClientRect().width;
+                                    const containerHeight = svg.node().getBoundingClientRect().height;
+                                    const transform = d3.zoomIdentity
+                                          .translate(containerWidth * 0, containerHeight / 2.5)
+                                          .scale(0.5);
+
+                                    svg.call(zoom.transform, transform);
+                              });
+                  }
+
+                  const ra_tree_dot = {{ ra_tree_svg | tojson }};
+                  const current_tree_dot = {{ current_tree_svg | tojson }};
+                  renderGraph('#ra-tree-container', ra_tree_dot, 0.4);
+                  renderGraph('#current-tree-container', current_tree_dot, 0.4); 
+            </script>
+            {% endif %}
+      </div>
+
+      <div class="modal fade" id="schemaModal" tabindex="-1" aria-labelledby="schemaModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-xl">
+                  <div class="modal-content">
+                        <div class="modal-header">
+                              <h5 class="modal-title" id="schemaModalLabel">
+                              </h5>
+                              <button type="button" class="btn-close" data-bs-dismiss="modal"
+                                    aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body">
+                              <div id="schema-graph" style="width: 100%; height: 700px; overflow: hidden;"></div>
+                        </div>
+                  </div>
+            </div>
+      </div>
+      <footer class="footer mt-4 py-3" style="background: rgba(0,0,0,0.3); backdrop-filter: blur(10px); border-top: 1px solid rgba(255,255,255,0.1);">
+            <div class="container text-center">
+                  <span style="color: rgba(255,255,255,0.7);">&copy; 2026 OptiQuery. Engineered with precision.</span>
+            </div>
+      </footer>
+      <!-- Bootstrap JS -->
+      <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+
+</html>

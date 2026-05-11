@@ -194,7 +194,7 @@ def build_table(node):
 # Main function to construct the RA tree from a SQL query (handling subqueries)
 def build_ra_tree(query):
     ast = sqlglot.parse_one(query)
-    from_expr = ast.args.get("from")
+    from_expr = ast.args.get("from_")
     if not from_expr:
         raise ValueError("No FROM clause found in query")
 
