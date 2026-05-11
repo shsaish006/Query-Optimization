@@ -1,0 +1,75 @@
+=============================================================
+OPTIQUERY: SQL EXAMPLES FOR COST OPTIMIZATION TESTING
+=============================================================
+These 12 examples are designed to be copied and pasted directly 
+into the OptiQuery web interface. They use the tables `t1` and `t2` 
+(which we mocked) to demonstrate how Predicate Pushdown and 
+Join Optimization affect the estimated cost.
+
+-------------------------------------------------------------
+CATEGORY 1: OPTIMIZED TREE IS CHEAPER (LOWER COST)
+-------------------------------------------------------------
+These queries have filters applied *after* the join. Applying 
+"Predicate Pushdown" will push the filters down before the join, 
+drastically reducing the number of rows processed during the join,
+thus lowering the cumulative cost.
+
+Example 1 (Basic Pushdown):
+SELECT t1.a, t2.b FROM t1 JOIN t2 ON t1.id = t2.id WHERE t1.x > 10;
+
+Example 2 (Double Pushdown):
+SELECT * FROM t1 JOIN t2 ON t1.id = t2.id WHERE t1.x = 5 AND t2.y = 10;
+
+Example 3 (Complex Filter Pushdown):
+SELECT t1.id, t2.id FROM t1 JOIN t2 ON t1.id = t2.id WHERE t1.a = 'test' AND t1.x < 100;
+
+Example 4 (Subquery Pushdown):
+SELECT * FROM (SELECT * FROM t1 JOIN t2 ON t1.id = t2.id) as sub WHERE sub.a = 'find_me';
+
+-------------------------------------------------------------
+CATEGORY 2: BOTH TREES HAVE ALMOST EQUAL COST
+-------------------------------------------------------------
+These queries are already written optimally, meaning the WHERE 
+clause is already as close to the base table as possible, or 
+there are no filters to push down. The optimizer won't be able 
+to improve the cost.
+
+Example 5 (Already Optimized):
+SELECT * FROM (SELECT * FROM t1 WHERE x > 10) as t1_opt JOIN t2 ON t1_opt.id = t2.id;
+
+Example 6 (No Filters):
+SELECT t1.a, t2.b FROM t1 JOIN t2 ON t1.id = t2.id;
+
+Example 7 (Join with no Where):
+SELECT * FROM t1 JOIN t2 ON t1.id = t2.id JOIN t1 as t3 ON t2.id = t3.id;
+
+Example 8 (Filter on completely optimized single table):
+SELECT * FROM t1 WHERE t1.x = 100;
+
+-------------------------------------------------------------
+CATEGORY 3: JOIN OPTIMIZATION DIFFERENCES
+-------------------------------------------------------------
+These queries involve multiple joins. "Apply Join Optimization" 
+will reorder the joins to join smaller tables first, reducing the 
+intermediate row counts.
+
+Example 9 (Sub-optimal Join Order - try Join Optimization):
+SELECT * FROM t1 JOIN (SELECT * FROM t1 WHERE x = 1) as tiny_t1 ON t1.id = tiny_t1.id JOIN t2 ON tiny_t1.id = t2.id;
+
+Example 10 (Large multi-join):
+SELECT * FROM t1 JOIN t2 ON t1.id = t2.id JOIN t1 as t3 ON t2.id = t3.id WHERE t3.x = 50;
+
+Example 11 (Cross Join simulation):
+SELECT * FROM t1 JOIN t2 ON 1=1 WHERE t1.x = 10 AND t2.y = 20;
+
+-------------------------------------------------------------
+CATEGORY 4: EDGE CASES
+-------------------------------------------------------------
+These queries test the boundaries of the parser and optimizer.
+
+Example 12 (Nested Subqueries with Late Filtering):
+SELECT final.a FROM (
+    SELECT mid.a, mid.b FROM (
+        SELECT t1.a, t2.b FROM t1 JOIN t2 ON t1.id = t2.id
+    ) as mid
+) as final WHERE final.b = 'edge_case';

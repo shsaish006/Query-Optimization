@@ -1,0 +1,55 @@
+// OptiQuery Advanced Architecture
+// Copy and paste this directly into Eraser.io (or similar tools) to instantly generate an editable architecture diagram.
+
+// --- System Groups & Components ---
+
+Presentation Layer [icon: layout] {
+  Glassmorphic UI [icon: monitor]
+  Metrics Dashboard [icon: bar-chart]
+  Graph Renderer [icon: activity]
+}
+
+Application Controller [icon: server] {
+  Flask App [icon: python]
+  Routing Engine [icon: git-branch]
+}
+
+Parsing Engine [icon: code] {
+  SQLGlot Parser [icon: file-text]
+  RA Tree Constructor [icon: share-2]
+}
+
+Optimization Engine [icon: settings] {
+  Predicate Pushdown [icon: filter]
+  Join Reordering [icon: shuffle]
+}
+
+Cost Analysis [icon: calculator] {
+  Recursive Estimator [icon: cpu]
+  Table Statistics [icon: database]
+  Metrics Extractor [icon: list]
+}
+
+
+// --- Data Flow & Connections ---
+
+// 1. User Input Flow
+Glassmorphic UI > Routing Engine: Submits SQL Query
+Routing Engine > SQLGlot Parser: Forwards Query
+
+// 2. Parsing Flow
+SQLGlot Parser > RA Tree Constructor: Generates AST
+RA Tree Constructor > Graph Renderer: Generates Initial Visual Tree
+
+// 3. Optimization Flow
+RA Tree Constructor > Optimization Engine: Unoptimized RA Tree
+Optimization Engine > Recursive Estimator: Sends Optimized RA Tree
+
+// 4. Estimation Flow
+Recursive Estimator > Table Statistics: Fetches Mock Data
+Recursive Estimator > Metrics Extractor: Computes Tree Costs
+Metrics Extractor > Metrics Dashboard: Formats Absolute & % Costs
+
+// 5. Output Flow
+Graph Renderer > Glassmorphic UI: Renders SVG Graph
+Metrics Dashboard > Glassmorphic UI: Updates UI Cards
