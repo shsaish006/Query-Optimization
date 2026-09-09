@@ -1,7 +1,7 @@
 # OptiQuery: Advanced SQL Processing and Cost Optimization Engine
 
 ## Abstract
-OptiQuery is a high-performance analytical tool designed to parse, analyze, and optimize standard SQL queries into Relational Algebra (RA) trees. It employs rigorous heuristic optimization techniques, specifically Predicate Pushdown and Join Reordering, to theoretically minimize query execution costs. By providing a comprehensive comparative analysis of the abstract syntax trees before and after optimization, OptiQuery allows database engineers and developers to visualize execution complexity reductions through a sophisticated web interface.
+OptiQuery is an advanced, high-performance analytical tool designed for multi-tiered systems and linear relational databases. It parses, analyzes, and optimizes standard SQL queries into Relational Algebra (RA) trees. It employs rigorous heuristic optimization techniques, specifically Predicate Pushdown and Join Reordering, to theoretically minimize query execution costs. By providing a comprehensive comparative analysis of the abstract syntax trees before and after optimization, OptiQuery allows database engineers and developers to visualize execution complexity reductions through a sophisticated web interface.
 
 ---
 
@@ -114,5 +114,3 @@ The web interface is engineered using a modern glassmorphic design paradigm laye
 **Analytical Data Displays:**
 - **D3 Graphviz Integration**: Renders the complete, interactive Relational Algebra trees directly in the viewport, mapping exact cumulative cost integers to individual procedural nodes.
 - **Performance Metrics Dashboard**: A structured grid calculating percentage-based optimization yields, absolute computational reductions, and categorical node distributions (Total Nodes, Total Joins, Base Table allocations).
-
-
