@@ -5,6 +5,19 @@ OptiQuery is an advanced, high-performance analytical tool designed for multi-ti
 
 ---
 
+## Motivation and Theoretical Foundation
+
+In modern multi-tiered application architectures, database operations often represent the most significant performance bottleneck. While contemporary Relational Database Management Systems (RDBMS) possess sophisticated internal query planners, developers frequently interact with databases through abstract layers like ORMs (Object-Relational Mappers) or complex API gateways. This abstraction can obscure the true computational cost of the executed SQL, leading to sub-optimal queries that scale poorly under linear or exponential data growth.
+
+OptiQuery was conceived to bridge this gap by bringing query execution transparency directly to the developer's workspace. By manually parsing SQL into Relational Algebra trees and applying deterministic heuristic optimizations—specifically focusing on minimizing intermediate relation sizes through early filtering (Predicate Pushdown) and optimal cross-referencing (Join Reordering)—OptiQuery serves dual purposes:
+
+1. **Educational/Diagnostic Tooling:** It explicitly demonstrates *why* certain query formulations are computationally expensive by providing deterministic cost estimations for both naive and optimized execution paths.
+2. **Architectural Validation:** It allows engineers designing complex linear relational schemas to validate their structural choices against simulated query execution costs before deploying to production environments where empirical testing might be cost-prohibitive.
+
+The underlying theory assumes that disk I/O and memory staging for intermediate Cartesian products dominate execution time. By reducing the cardinality of relations as early as possible in the execution tree, we mathematically guarantee a lower upper bound on the computational complexity of the final result set generation.
+
+---
+
 ## System Architecture
 
 The following diagram illustrates the advanced structural flow of data and operations within the OptiQuery execution environment.
