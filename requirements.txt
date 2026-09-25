@@ -1,4 +1,4 @@
 flask
 sqlglot
-pysopg2-binary
+psycopg2-binary
 graphviz
